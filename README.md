@@ -9,23 +9,21 @@ This repository provides a minimal Home Assistant add-on **plus** a companion cu
 
 ## Quick setup
 
-1. **Build & install the add-on**
-   - Build the Docker image: `docker build -t ha-basic-addon addon/`
-   - Push it to your registry (optional) and configure the supervisor add-on to use it.
-   - In Supervisor, add this repository under **Add-on Store > Repositories**, install the add-on, and start it.
+1. **Install the add-on**
+   - Go to Hass.io Supervisor → Add-on Store → *Repositories* and add `https://github.com/Amantux/ha-basic-addon`.
+   - Install **HA Basic Add-on**, then configure any options you need (host/port/greeting) and start it.
+   - The add-on ships with a `config.json` at the repository root so Supervisor recognizes it automatically.
 
 2. **Install the integration via HACS**
-   - Add this repository under HACS (Custom repositories → Integration, category "Integration").
-   - Search for *HA Basic Add-on* in HACS and install it.
-   - Restart Home Assistant to load the new integration.
+   - In HACS go to **Integrations → Custom repositories** and register this repository with category **Integration**.
+   - Install the integration, then restart Home Assistant to make it available.
 
-3. **Configure the integration**
-   - In Home Assistant, go to **Settings > Devices & Services > Add Integration** and search for **HA Basic Add-on**.
-   - Enter the add-on host (e.g., `http://127.0.0.1`) and port (defaults to `8080`).
-   - A sensor named `Basic Add-on Health` will appear showing the response from `/health`.
+3. **Let Home Assistant discover the add-on**
+   - When the add-on runs, Supervisor sends discovery information for the `ha_basic_addon` domain.
+   - A prompt appears in Settings → Devices & Services to finish setting up the `Basic Add-on Health` sensor.
 
 ## Development notes
 
-- Modify `addon/main.py` to expose additional actions or data for the integration.
-- The integration uses a `DataUpdateCoordinator` to poll `/health` once every 60 seconds.
-- Update `CHANGELOG.md` when you ship new versions.
+- Modify `addon/main.py` to expose additional actions, endpoints, or metadata for the integration.
+- The integration uses a `DataUpdateCoordinator` to poll `/health` once every 60 seconds and surface JSON fields as device state attributes.
+- Update `CHANGELOG.md` when you ship new versions or change the discovery workflow.

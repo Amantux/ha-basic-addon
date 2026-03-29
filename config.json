@@ -1,0 +1,39 @@
+{
+  "name": "HA Basic Add-on",
+  "version": "0.1.1",
+  "slug": "ha-basic-addon",
+  "description": "A minimal supervisor add-on that exposes a health endpoint for Home Assistant integrations.",
+  "arch": [
+    "amd64",
+    "armv7",
+    "aarch64"
+  ],
+  "startup": "services",
+  "boot": "auto",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "options": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "greeting": "Hello from HA Basic Add-on!"
+  },
+  "ports": {
+    "8080/tcp": 8080
+  },
+  "ingress": true,
+  "map": [
+    {
+      "data": "config"
+    }
+  ],
+  "discovery": [
+    "ha_basic_addon"
+  ],
+  "schema": {
+    "host": "str?",
+    "port": "int?",
+    "greeting": "str?"
+  },
+  "host_network": false
+}

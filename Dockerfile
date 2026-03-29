@@ -2,10 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY run.sh main.py requirements.txt /app/
+COPY addon/run.sh addon/main.py addon/requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt && \
-    chmod +x /app/run.sh
+    chmod +x ./run.sh
 
 EXPOSE 8080
 

@@ -1,12 +1,14 @@
 {
   "name": "HA Basic Add-on",
-  "content_in_root": false,
+  "content_in_root": true,
   "domains": [
     "ha_basic_addon"
   ],
-  "components": [],
+  "components": [
+    "integration"
+  ],
   "country": [],
-  "remote": "",
+  "remote": "https://github.com/Amantux/ha-basic-addon",
   "tags": [
     "addon",
     "integration"

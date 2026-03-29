@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 import voluptuous as vol
 from aiohttp import ClientError
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import aiohttp_client
 
 from .const import CONF_HOST, CONF_PORT, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
@@ -45,6 +47,16 @@ class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    async def async_step_discovery(self, discovery_info: dict[str, Any]) -> FlowResult:
+        host = self._sanitize_host(str(discovery_info.get(CONF_HOST, DEFAULT_HOST)))
+        port = int(discovery_info.get(CONF_PORT, DEFAULT_PORT))
+        entry_data = {CONF_HOST: host, CONF_PORT: port}
+
+        if self._async_abort_entries_match(entry_data):
+            return self.async_abort(reason="already_configured")
+
+        return self.async_create_entry(title="HA Basic Add-on", data=entry_data)
 
     async def _async_validate_input(self, hass: HomeAssistant, data: dict[str, object]) -> None:
         session = aiohttp_client.async_get_clientsession(hass)
