@@ -1,5 +1,24 @@
 # Copilot Instructions
 
+## ⚠️ CRITICAL: Change policy for this repository
+
+**This repository (`ha-basic-addon`) is a stable reference implementation. It must NOT be modified without the user's explicit, expressed permission.**
+
+Before making ANY change to `ha-basic-addon` — including Dockerfile, `run.sh`, `main.py`, the integration, config files, or documentation — you must:
+1. **Stop.**
+2. **Ask the user directly**: "I need to modify ha-basic-addon to do X. Do I have your permission?"
+3. **Wait for a clear "yes"** before touching any file in this repo.
+
+This repo exists as the proven, working foundation. It is also the reference that `ha-mcp-bridge` is built from. Unsolicited changes break that reference and cause cascading regressions (see v0.1.11, v0.1.12 history).
+
+### Using ha-basic-addon as a foundation for ha-mcp-bridge
+When building or improving `ha-mcp-bridge`:
+- **Read** `ha-basic-addon`'s files to understand the correct patterns (Dockerfile, `run.sh`, `main.py`, `config_flow.py`, coordinator, translations).
+- **Copy and adapt** those patterns into `ha-mcp-bridge` — do not modify the source.
+- Any pattern that works in `ha-basic-addon` is the correct pattern for `ha-mcp-bridge`. Any deviation requires a documented reason.
+
+---
+
 ## Repository overview
 
 This repo ships two tightly coupled components under one GitHub URL:
