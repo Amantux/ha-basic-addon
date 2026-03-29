@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.9] - 2026-03-29
+- **Fix (root cause): Add-on now calls the Supervisor discovery API on startup.**
+  Every previous version since v0.1.1 had `"discovery": ["ha_basic_addon"]` in
+  `config.json` but `addon/main.py` never called `POST http://supervisor/discovery`.
+  That declaration is only a *security allowlist* — it permits the call but does not
+  make it automatically. Without the actual API call, Supervisor never tells HA core
+  that the add-on is available, so `async_step_hassio` is *never triggered*, and
+  every config_flow fix since v0.1.5 was solving the right problem in the wrong place.
+
+  Fix: `register_discovery()` is now called at startup before the HTTP server starts.
+  It POSTs `{"service": "ha_basic_addon", "config": {"host": "127.0.0.1", "port": 8080}}`
+  to `http://supervisor/discovery` with `Authorization: Bearer {SUPERVISOR_TOKEN}`.
+  Supervisor validates the service name against config.json, assigns a UUID, and
+  notifies HA core → HA creates the config flow → `async_step_hassio` fires →
+  the "New device found" card appears in Settings → Devices & Services.
+
+- **Fix: Remove `ingress: true` from config.json.**
+  Ingress requires the add-on to validate `X-Ingress-Token` on every request.
+  Without that handler the add-on silently served malformed responses to Supervisor's
+  ingress proxy. Removed since we are not building a sidebar panel.
+
 ## [0.1.8] - 2026-03-29
 - **Fix (critical): `_set_confirm_only()` now called in `async_step_hassio_confirm`.**
   This is the single call that tells HA the confirmation form has no data fields — just
