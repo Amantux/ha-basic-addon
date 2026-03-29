@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.8] - 2026-03-29
+- **Fix (critical): `_set_confirm_only()` now called in `async_step_hassio_confirm`.**
+  This is the single call that tells HA the confirmation form has no data fields — just
+  a Submit button. HA uses this flag to surface the "New device found" notification badge
+  in Settings → Devices & Services. Without it the flow is registered internally but the
+  badge never appears, so the user has no idea the add-on was discovered.
+  Source: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/discovery/
+
+- **Fix: Validation moved to `async_step_hassio` (not the confirm step).**
+  Per the HA quality-scale discovery rule, the connection check happens in the *discovery*
+  step, before any UI is shown. If the add-on is not yet ready, the flow aborts with
+  `cannot_connect` immediately. The confirm step now only shows the form and creates the
+  entry — no redundant re-validation needed.
+
+- **Fix: `_abort_if_unique_id_configured(updates={CONF_PORT: port})`.**
+  If the add-on is already configured but its port changed (e.g. after a restart with a
+  different port), HA now silently updates the existing config entry instead of erroneously
+  aborting as `already_configured`. This keeps the integration in sync automatically.
+
 ## [0.1.7] - 2026-03-29
 - **Fix (critical): Add `translations/en.json`.**
   `strings.json` is the *source* file used by HA's translation toolchain. At runtime HA

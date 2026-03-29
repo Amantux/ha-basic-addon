@@ -53,22 +53,86 @@ class HaBasicAddonOptionsFlow(config_entries.OptionsFlow):
 class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for HA Basic Add-on.
 
-    Discovery path (Supervisor):
-        async_step_hassio  →  async_step_hassio_confirm  →  entry created
-        (stores info)          (user confirms in UI)
+    Supervisor discovery path (preferred — zero user typing):
+        async_step_hassio         validate connection; abort early if add-on not ready
+            ↓
+        async_step_hassio_confirm  _set_confirm_only() → surfaces "New device found" badge
+            ↓ (user clicks Submit)
+        async_create_entry
 
     Manual path:
-        async_step_user  →  entry created
+        async_step_user  →  validate  →  async_create_entry
     """
 
     VERSION = 1
 
-    # Populated in async_step_hassio; read in async_step_hassio_confirm.
+    # Set in async_step_hassio; read in async_step_hassio_confirm.
     _hassio_discovery: HassioServiceInfo | None = None
 
     @staticmethod
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> HaBasicAddonOptionsFlow:
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> HaBasicAddonOptionsFlow:
         return HaBasicAddonOptionsFlow()
+
+    # ------------------------------------------------------------------
+    # Supervisor discovery — follows HA quality-scale pattern:
+    # https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/discovery/
+    # ------------------------------------------------------------------
+
+    async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
+        """Step 1 — called by Supervisor when the add-on advertises ha_basic_addon.
+
+        Per the HA discovery quality-scale rule, validation happens HERE (not in
+        the confirm step) so a not-yet-ready add-on aborts cleanly before any UI
+        is shown.  We also pass `updates` to _abort_if_unique_id_configured so that
+        a port change on the running add-on is silently applied to the existing entry
+        rather than triggering a duplicate-detection abort.
+        """
+        port = int(discovery_info.config.get(CONF_PORT, DEFAULT_PORT))
+
+        await self.async_set_unique_id(discovery_info.uuid)
+        # If already configured, update the port if it changed and stop the flow.
+        self._abort_if_unique_id_configured(updates={CONF_PORT: port})
+
+        # Validate the connection now — abort before showing any UI if unreachable.
+        try:
+            await self._async_validate_input(
+                self.hass, {CONF_HOST: DEFAULT_HOST, CONF_PORT: port}
+            )
+        except (ClientError, asyncio.TimeoutError) as exc:
+            _LOGGER.debug("Add-on not reachable during Supervisor discovery: %s", exc)
+            return self.async_abort(reason="cannot_connect")
+
+        self._hassio_discovery = discovery_info
+        return await self.async_step_hassio_confirm()
+
+    async def async_step_hassio_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2 — confirmation form.
+
+        `_set_confirm_only()` marks the form as having no data fields — just a
+        Submit button.  This is what causes HA to surface the "New device found"
+        notification badge in Settings → Devices & Services.  Without this call
+        the flow is registered internally but the badge never appears.
+        """
+        assert self._hassio_discovery is not None
+
+        if user_input is not None:
+            # Connection was already validated in async_step_hassio — create immediately.
+            port = int(self._hassio_discovery.config.get(CONF_PORT, DEFAULT_PORT))
+            return self.async_create_entry(
+                title=self._hassio_discovery.name,
+                data={CONF_HOST: DEFAULT_HOST, CONF_PORT: port},
+            )
+
+        # No user_input yet — show the confirm form.
+        self._set_confirm_only()
+        return self.async_show_form(
+            step_id="hassio_confirm",
+            description_placeholders={"addon": self._hassio_discovery.name},
+        )
 
     # ------------------------------------------------------------------
     # Manual setup
@@ -77,11 +141,11 @@ class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, object] | None = None
     ) -> FlowResult:
+        """Manual setup via Settings → Devices & Services → Add integration."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            sanitized_host = self._sanitize_host(user_input[CONF_HOST])
             entry_data = {
-                CONF_HOST: sanitized_host,
+                CONF_HOST: self._sanitize_host(str(user_input[CONF_HOST])),
                 CONF_PORT: int(user_input[CONF_PORT]),
             }
             try:
@@ -104,61 +168,18 @@ class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     # ------------------------------------------------------------------
-    # Supervisor discovery — two-step following the Mealie pattern
-    # (homeassistant/components/mealie/config_flow.py)
-    # ------------------------------------------------------------------
-
-    async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
-        """Step 1: Triggered by Supervisor when the add-on advertises ha_basic_addon.
-
-        SOURCE_HASSIO → async_step_hassio (homeassistant/components/hassio/discovery.py).
-        We store the discovery payload and surface a confirmation card in the UI.
-        We do NOT create the entry here — that lets the user acknowledge the discovery
-        and gives us a chance to validate the connection first.
-        """
-        await self.async_set_unique_id(discovery_info.uuid)
-        self._abort_if_unique_id_configured()
-
-        self._hassio_discovery = discovery_info
-        return await self.async_step_hassio_confirm()
-
-    async def async_step_hassio_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 2: User clicks the 'New device found' card and confirms.
-
-        Validates the connection before creating the entry so a not-yet-ready
-        add-on doesn't leave a broken config entry behind.
-        """
-        assert self._hassio_discovery is not None
-
-        if user_input is None:
-            # Show confirmation form — user sees the add-on name and clicks Submit.
-            return self.async_show_form(
-                step_id="hassio_confirm",
-                description_placeholders={"addon": self._hassio_discovery.name},
-            )
-
-        port = int(self._hassio_discovery.config.get(CONF_PORT, DEFAULT_PORT))
-        data = {CONF_HOST: DEFAULT_HOST, CONF_PORT: port}
-
-        try:
-            await self._async_validate_input(self.hass, data)
-        except (ClientError, asyncio.TimeoutError) as exc:
-            _LOGGER.warning("Add-on not reachable during discovery confirm: %s", exc)
-            return self.async_abort(reason="cannot_connect")
-
-        return self.async_create_entry(title=self._hassio_discovery.name, data=data)
-
-    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
-    async def _async_validate_input(self, hass: HomeAssistant, data: dict[str, object]) -> None:
+    async def _async_validate_input(
+        self, hass: HomeAssistant, data: dict[str, object]
+    ) -> None:
+        """Hit the /health endpoint; raise ClientError or TimeoutError on failure."""
         session = aiohttp_client.async_get_clientsession(hass)
         url = build_health_url(str(data[CONF_HOST]), int(data[CONF_PORT]))
         async with session.get(url, timeout=_TIMEOUT) as response:
             response.raise_for_status()
 
-    def _sanitize_host(self, host: str) -> str:
+    @staticmethod
+    def _sanitize_host(host: str) -> str:
         return host.strip().rstrip("/")
