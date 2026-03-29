@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.10] - 2026-03-29
+- **Docs: Complete README rewrite.**
+  - Three **Add to Home Assistant** one-click buttons:
+    1. Add Supervisor repository (`my.home-assistant.io/redirect/supervisor_add_addon_repository`)
+    2. Add integration via HACS (`my.home-assistant.io/redirect/hacs_repository`)
+    3. Start config flow directly (`my.home-assistant.io/redirect/config_flow_start`)
+  - Full end-to-end discovery chain diagram with ASCII art showing every hop from
+    `register_discovery()` → Supervisor → `async_step_hassio` → `_set_confirm_only()` → badge.
+  - "Why each step is necessary" table — documents every common failure mode and why the
+    fix works.
+  - "Why `translations/en.json` is required" explanation.
+  - Entities table, options table, repository structure tree, local dev commands.
+
 ## [0.1.9] - 2026-03-29
 - **Fix (root cause): Add-on now calls the Supervisor discovery API on startup.**
   Every previous version since v0.1.1 had `"discovery": ["ha_basic_addon"]` in
