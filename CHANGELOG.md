@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.12] - 2026-03-29
+- **Fix (for real): s6-overlay — same pattern as ha-mcp-bridge v0.1.2.**
+  Root cause of persistent failure in v0.1.11: `addon/run.sh` was not
+  marked executable in git (`-rw-r--r--` / mode 100644). The Dockerfile
+  `RUN chmod a+x` sets the bit at *build* time, but when the Supervisor
+  rebuilds the image it clones the repo and copies the file as-is. If the
+  file mode is 644 at copy time, s6-overlay cannot exec it and exits with
+  `s6-overlay-suexec: fatal: can only run as pid 1`.
+  Fix applied:
+  - Reverted to v0.1.10 as the clean base.
+  - Applied Dockerfile/run.sh changes from ha-mcp-bridge v0.1.2 (the
+    verified-working pattern).
+  - `git update-index --chmod=+x addon/run.sh` to persist 100755 mode in
+    the repository index so every fresh clone has the correct permissions.
+
 ## [0.1.11] - 2026-03-29
 - **Fix (critical): s6-overlay Dockerfile.**
   HA base images use s6-overlay as PID 1 (`ENTRYPOINT ["/init"]`). The previous

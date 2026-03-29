@@ -9,6 +9,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Register with s6-overlay (HA base image init system, PID 1).
 # Never override CMD/ENTRYPOINT — the base image ENTRYPOINT is /init (s6).
+# s6 reads services from /etc/services.d/<name>/run and supervises them.
 COPY addon/run.sh /etc/services.d/ha-basic-addon/run
 RUN chmod a+x /etc/services.d/ha-basic-addon/run
 
