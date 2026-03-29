@@ -5,7 +5,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from aiohttp import ClientError
+from aiohttp import ClientError, ClientTimeout
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
@@ -15,13 +15,15 @@ from .const import CONF_HOST, CONF_PORT, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
 from .helpers import build_health_url
 
 _LOGGER = logging.getLogger(__name__)
+_TIMEOUT = ClientTimeout(total=10)
 
 
 class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
-    async def async_step_user(self, user_input: dict[str, object] | None = None):
+    async def async_step_user(
+        self, user_input: dict[str, object] | None = None
+    ) -> FlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             sanitized_host = self._sanitize_host(user_input[CONF_HOST])
@@ -49,23 +51,22 @@ class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_discovery(self, discovery_info: dict[str, Any]) -> FlowResult:
+        """Handle Supervisor discovery — fires when the add-on advertises ha_basic_addon."""
+        await self.async_set_unique_id(DOMAIN)
+        self._abort_if_unique_id_configured()
+
         host = self._sanitize_host(str(discovery_info.get(CONF_HOST, DEFAULT_HOST)))
         port = int(discovery_info.get(CONF_PORT, DEFAULT_PORT))
-        entry_data = {CONF_HOST: host, CONF_PORT: port}
-
-        if self._async_abort_entries_match(entry_data):
-            return self.async_abort(reason="already_configured")
-
-        return self.async_create_entry(title="HA Basic Add-on", data=entry_data)
+        return self.async_create_entry(
+            title="HA Basic Add-on",
+            data={CONF_HOST: host, CONF_PORT: port},
+        )
 
     async def _async_validate_input(self, hass: HomeAssistant, data: dict[str, object]) -> None:
         session = aiohttp_client.async_get_clientsession(hass)
-        host = str(data[CONF_HOST])
-        port = int(data[CONF_PORT])
-        url = build_health_url(host, port)
-        async with session.get(url, timeout=10) as response:
+        url = build_health_url(str(data[CONF_HOST]), int(data[CONF_PORT]))
+        async with session.get(url, timeout=_TIMEOUT) as response:
             response.raise_for_status()
 
     def _sanitize_host(self, host: str) -> str:
-        sanitized = host.strip()
-        return sanitized.rstrip("/")
+        return host.strip().rstrip("/")

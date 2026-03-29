@@ -77,6 +77,12 @@ self._attr_unique_id = f"{DOMAIN}_health"
 self._attr_name = "Basic Add-on Health"
 ```
 
+### `iot_class` must match actual behaviour
+`manifest.json → iot_class` must reflect how the integration actually retrieves data:
+- `local_polling` — integration polls the device on a schedule (current pattern, 60s coordinator)
+- `local_push` — device pushes state changes to HA
+Using the wrong value causes HACS/HA quality-scale warnings and misleads users.
+
 ### Discovery wiring
 For discovery to work end-to-end:
 1. `config.json` must list the domain under `"discovery"`: `["ha_basic_addon"]`
@@ -103,6 +109,19 @@ async def async_unload_entry(hass, entry):
 ```
 
 Define `PLATFORMS` as a module-level list so it stays in sync between setup and unload.
+
+### Never use `CONNECTION_CLASS`
+`CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL` was removed in HA 2022.9. Delete it if present — its presence raises an `AttributeError` on modern HA.
+
+### Use `aiohttp.ClientTimeout`, not raw integers
+Raw `timeout=10` triggers a `DeprecationWarning` in modern aiohttp and may be removed. Always use `ClientTimeout`:
+```python
+from aiohttp import ClientTimeout
+_TIMEOUT = ClientTimeout(total=10)
+# ...
+session.get(url, timeout=_TIMEOUT)
+```
+Define `_TIMEOUT` at module level so it is created once. Catch both `ClientError` and `asyncio.TimeoutError` since `ClientTimeout` raises the latter on expiry.
 
 ### Coordinator is the single source of truth
 All entities should be `CoordinatorEntity` subclasses. Never fetch data directly in an entity — add a method to the coordinator and call it from there.

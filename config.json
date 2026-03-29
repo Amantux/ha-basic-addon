@@ -1,6 +1,6 @@
 {
   "name": "HA Basic Add-on",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "slug": "ha-basic-addon",
   "description": "A minimal supervisor add-on that exposes a health endpoint for Home Assistant integrations.",
   "url": "https://github.com/Amantux/ha-basic-addon",
