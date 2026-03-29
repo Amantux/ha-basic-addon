@@ -15,5 +15,18 @@
     "abort": {
       "already_configured": "This add-on is already configured."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA Basic Add-on options",
+        "data": {
+          "update_interval": "Poll interval (seconds)"
+        },
+        "data_description": {
+          "update_interval": "How often to fetch the add-on health status. Minimum 10 s, maximum 3600 s."
+        }
+      }
+    }
   }
 }

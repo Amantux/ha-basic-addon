@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.5] - 2026-03-29
+- **Fix (critical): Supervisor discovery now actually works.**
+  - Renamed `async_step_discovery` → `async_step_hassio`. HA Supervisor sets
+    `context["source"] = SOURCE_HASSIO` which maps to `async_step_hassio`, not
+    `async_step_discovery`. The old handler was silently never called.
+    Citation: `homeassistant/components/hassio/discovery.py` → `async_create_flow`
+    with `context={"source": config_entries.SOURCE_HASSIO}`.
+  - Import `HassioServiceInfo` from the correct path:
+    `homeassistant.helpers.service_info.hassio` (not `homeassistant.components.hassio`).
+  - Use `discovery_info.uuid` as the unique_id (stable per add-on instance) instead
+    of the domain string. Using the domain caused all installs to share one unique_id.
+  - Stop using `discovery_info.config["host"]` (that is the add-on bind address `0.0.0.0`,
+    not a routable address). Discovery now defaults to `http://127.0.0.1`.
+- **New: options flow** — users can now change the poll interval (10–3600 s) via
+  Settings → Devices & Services → Configure, without re-adding the integration.
+  Changing the option reloads the config entry so the new interval takes effect immediately.
+- `const.py`: added `CONF_UPDATE_INTERVAL` / `DEFAULT_UPDATE_INTERVAL = 60`.
+- `strings.json`: added `options.step.init` section for the new options form.
+
 ## [0.1.4] - 2026-03-29
 - Fix: `addon/run.sh` now calls `python3` instead of `python` — HA Alpine base images only provide `python3`, so the add-on was failing to start.
 - Fix: `iot_class` corrected from `local_push` to `local_polling` in `manifest.json` — the integration polls every 60s, it does not receive pushed data.

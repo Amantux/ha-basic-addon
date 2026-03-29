@@ -83,10 +83,35 @@ self._attr_name = "Basic Add-on Health"
 - `local_push` — device pushes state changes to HA
 Using the wrong value causes HACS/HA quality-scale warnings and misleads users.
 
-### Discovery wiring
+### Discovery wiring — use `async_step_hassio`, not `async_step_discovery`
+
+HA Supervisor sets `context={"source": SOURCE_HASSIO}` when creating the discovery flow. HA's `data_entry_flow.py` maps this to `async_step_{source}` = **`async_step_hassio`**.  `async_step_discovery` is for generic discovery (mDNS/DHCP) and is **never called** by Supervisor.
+
+Citation: `homeassistant/components/hassio/discovery.py` → `discovery_flow.async_create_flow(..., context={"source": config_entries.SOURCE_HASSIO}, ...)`
+
+**Import path** (corrected):
+```python
+from homeassistant.helpers.service_info.hassio import HassioServiceInfo
+```
+`HassioServiceInfo` fields: `config: dict`, `name: str`, `slug: str`, `uuid: str`
+
+**Correct pattern:**
+```python
+async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
+    await self.async_set_unique_id(discovery_info.uuid)   # stable hex per add-on instance
+    self._abort_if_unique_id_configured()
+    port = int(discovery_info.config.get(CONF_PORT, DEFAULT_PORT))
+    # discovery_info.config["host"] is the bind address (0.0.0.0) — not routable.
+    # On Supervisor both HA and the add-on share the host; connect via 127.0.0.1.
+    return self.async_create_entry(
+        title=discovery_info.name,
+        data={CONF_HOST: DEFAULT_HOST, CONF_PORT: port},
+    )
+```
+
 For discovery to work end-to-end:
 1. `config.json` must list the domain under `"discovery"`: `["ha_basic_addon"]`
-2. `config_flow.py` must implement `async_step_discovery`
+2. `config_flow.py` must implement `async_step_hassio` (not `async_step_discovery`)
 3. The config flow domain must match `DOMAIN` in `const.py` and `"domain"` in `manifest.json`
 
 ---
@@ -134,8 +159,14 @@ All entities should be `CoordinatorEntity` subclasses. Never fetch data directly
 
 ### Config entry data vs. options
 - `entry.data` — set at config-flow time, does not change without re-auth/reconfiguration.
-- `entry.options` — user-editable after setup via an options flow.
-Currently everything lives in `entry.data`; add an options flow if user-tunable settings are needed post-setup.
+- `entry.options` — user-editable after setup via an options flow (implemented).
+- When options change, the reload listener in `__init__.py` triggers `async_reload`, which recreates the coordinator with the new `update_interval`.
+
+### Adding new options
+1. Add the constant to `const.py`.
+2. Add the field to `HaBasicAddonOptionsFlow.async_step_init` schema in `config_flow.py`.
+3. Read it in the coordinator or wherever it applies.
+4. Add the label to `strings.json` under `options.step.init.data`.
 
 ### Type annotations
 All new functions must carry full PEP 484 annotations. The file-level `from __future__ import annotations` is already present in every module — keep it.

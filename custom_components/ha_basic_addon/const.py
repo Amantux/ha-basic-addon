@@ -2,7 +2,9 @@ DOMAIN = "ha_basic_addon"
 
 CONF_HOST = "host"
 CONF_PORT = "port"
+CONF_UPDATE_INTERVAL = "update_interval"
 
 DEFAULT_HOST = "http://127.0.0.1"
 DEFAULT_PORT = 8080
 DEFAULT_HEALTH_PATH = "/health"
+DEFAULT_UPDATE_INTERVAL = 60

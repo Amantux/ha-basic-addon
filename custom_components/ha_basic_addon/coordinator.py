@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_HOST, CONF_PORT, DOMAIN
+from .const import CONF_HOST, CONF_PORT, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .helpers import build_health_url
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,11 +21,12 @@ class HaBasicAddonDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, session: ClientSession, entry: ConfigEntry) -> None:
         self._session = session
         self._url = build_health_url(entry.data[CONF_HOST], int(entry.data[CONF_PORT]))
+        interval = int(entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL))
         super().__init__(
             hass,
             _LOGGER,
             name="ha_basic_addon",
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(seconds=interval),
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
