@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.1.7] - 2026-03-29
+- **Fix (critical): Add `translations/en.json`.**
+  `strings.json` is the *source* file used by HA's translation toolchain. At runtime HA
+  resolves UI strings from `translations/{lang}.json`. Without `translations/en.json`, config
+  flow steps display raw translation keys instead of human-readable text, and some HA versions
+  silently refuse to render the flow at all — making discovery invisible to the user.
+  Fix: created `custom_components/ha_basic_addon/translations/en.json` mirroring `strings.json`
+  with improved descriptions including `data_description` fields for every input.
+
+- **Fix: `hacs.json` `iot_class` mismatch.**
+  Was `local_push`; changed to `local_polling` to match `manifest.json`. HACS uses this field
+  for integration categorisation and surfacing in search results.
+
+- **Fix: Sensor `unique_id` now scoped to config entry.**
+  Was a static `ha_basic_addon_health` string — a collision hazard if the integration is
+  reloaded or added twice. Now `{entry.entry_id}_status` / `{entry.entry_id}_uptime`, ensuring
+  stable, per-instance IDs in the HA entity and device registry.
+
+- **Fix: `AddEntitiesCallback` import path.**
+  Moved from deprecated `homeassistant.helpers.entity` to correct
+  `homeassistant.helpers.entity_platform`.
+
+- **Fix: `DeviceInfo` import path.**
+  Moved from `homeassistant.helpers.entity` to `homeassistant.helpers.device_registry`
+  (correct since HA 2023.x).
+
+- **New: Two entities now exposed under one device card.**
+  - `sensor.*_status` — health endpoint status text (`ok` / error string), with greeting /
+    path / timestamp as state attributes.
+  - `sensor.*_uptime` — add-on process uptime in seconds, typed as
+    `SensorDeviceClass.DURATION` / `SensorStateClass.TOTAL_INCREASING` so HA can graph it.
+  Both entities use `_attr_has_entity_name = True` and share a `DeviceInfo` keyed on
+  `entry.entry_id`, producing a single device card in Settings → Devices & Services.
+
 ## [0.1.6] - 2026-03-29
 - **Fix (critical): Two-step Supervisor discovery flow.**
   - Previous: `async_step_hassio` immediately called `async_create_entry`. This skipped the

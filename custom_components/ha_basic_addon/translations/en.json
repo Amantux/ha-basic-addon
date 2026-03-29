@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to HA Basic Add-on",
+        "data": {
+          "host": "Add-on host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Hostname or IP (e.g. http://127.0.0.1). Leave as default when running under Supervisor.",
+          "port": "TCP port the add-on is listening on (default 8080)."
+        }
+      },
+      "hassio_confirm": {
+        "title": "HA Basic Add-on discovered",
+        "description": "Set up Home Assistant to connect to the discovered add-on: **{addon}**?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect. Make sure the add-on is installed and running."
+    },
+    "abort": {
+      "already_configured": "This add-on is already configured.",
+      "cannot_connect": "Could not reach the add-on. Start it and try again from Settings \u2192 Devices & Services."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA Basic Add-on options",
+        "data": {
+          "update_interval": "Poll interval (seconds)"
+        },
+        "data_description": {
+          "update_interval": "How often HA fetches the add-on health status. Minimum 10 s, maximum 3600 s."
+        }
+      }
+    }
+  }
+}
