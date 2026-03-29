@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.11] - 2026-03-29
+- **Fix (critical): s6-overlay Dockerfile.**
+  HA base images use s6-overlay as PID 1 (`ENTRYPOINT ["/init"]`). The previous
+  `Dockerfile` had `ENTRYPOINT ["./run.sh"]` which bypassed s6-overlay entirely →
+  `s6-overlay-suexec: fatal: can only run as pid 1`.
+  Fix: removed `ENTRYPOINT`; service script registered at
+  `/etc/services.d/ha-basic-addon/run` so s6-overlay starts and supervises it.
+- **Fix: `run.sh` shebang → `#!/usr/bin/with-contenv bashio`.**
+  Ensures `SUPERVISOR_TOKEN` is exported from s6-overlay's container environment
+  before Python starts. Without it discovery registration silently fails.
+- **Fix: `pip` → `pip3`** in Dockerfile RUN command.
+
 ## [0.1.10] - 2026-03-29
 - **Docs: Complete README rewrite.**
   - Three **Add to Home Assistant** one-click buttons:

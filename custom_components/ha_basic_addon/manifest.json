@@ -1,7 +1,7 @@
 {
   "domain": "ha_basic_addon",
   "name": "HA Basic Add-on",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "homeassistant": "2022.6.0",
   "documentation": "https://github.com/Amantux/ha-basic-addon",
   "dependencies": [],
