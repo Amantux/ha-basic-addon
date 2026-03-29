@@ -59,6 +59,8 @@ Example workflow for any code change:
 3. Add a `CHANGELOG.md` entry.
 4. Commit and push — include the version number in the commit message, e.g. `fix: correct health timeout (v0.1.3)`.
 
+The CI workflow (`.github/workflows/validate.yml`) enforces this: it will fail the build if the two version strings differ, and automatically creates a tagged GitHub release for any new version. **HACS requires a GitHub release to deliver updates to users** — without a matching tag, installed copies never see the update.
+
 ### Supervisor add-on config rules
 - Valid `config.json` keys: `name`, `version`, `slug`, `description`, `url`, `arch`, `startup`, `boot`, `options`, `schema`, `ports`, `ingress`, `map`, `discovery`.
 - `map` must be a **string list**: `["data:rw"]`. Object form `[{"data": "config"}]` is rejected by Supervisor.
@@ -87,8 +89,20 @@ For discovery to work end-to-end:
 
 These are non-obvious patterns enforced by the HA architecture that differ from generic Python.
 
-### Always use `async_setup_platforms` / `async_unload_platforms`
-Platform setup and teardown must go through the config entry helpers (already wired in `__init__.py`). Do not call `hass.helpers.discovery.async_load_platform` directly.
+### Always use `async_forward_entry_setups` / `async_unload_platforms`
+Platform setup must use the `await`-able `async_forward_entry_setups` (introduced HA 2022.6). The old `async_setup_platforms` (non-awaited) is removed in modern HA.
+
+```python
+PLATFORMS = ["sensor"]
+
+async def async_setup_entry(hass, entry):
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+async def async_unload_entry(hass, entry):
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+```
+
+Define `PLATFORMS` as a module-level list so it stays in sync between setup and unload.
 
 ### Coordinator is the single source of truth
 All entities should be `CoordinatorEntity` subclasses. Never fetch data directly in an entity — add a method to the coordinator and call it from there.
@@ -109,6 +123,30 @@ All new functions must carry full PEP 484 annotations. The file-level `from __fu
 
 ### Logging
 Use module-level `_LOGGER = logging.getLogger(__name__)`. Log at `DEBUG` for routine polling, `WARNING` for recoverable errors, `ERROR` only for failures that require user action.
+
+---
+
+## CI / release workflow
+
+`.github/workflows/validate.yml` runs on every push to `master`:
+
+1. **Validate** — fails the build if `config.json` and `manifest.json` versions don't match.
+2. **Release** — creates a tagged GitHub release (`v0.1.x`) and extracts the matching `CHANGELOG.md` section as release notes. Skips silently if the tag already exists.
+
+HACS checks GitHub releases to know when a new version is available. Without a release tag that matches `manifest.json → version`, users who installed the integration via HACS will never receive the update.
+
+---
+
+## strings.json
+
+`custom_components/ha_basic_addon/strings.json` provides user-facing text for the config flow. Without it, HA displays raw translation keys (`cannot_connect`, `already_configured`) in the UI.
+
+Structure mirrors the config flow steps and matches keys used in `config_flow.py`:
+- `config.step.<step_id>.data.<key>` → label for each form field
+- `config.error.<key>` → shown when `errors["base"] = "<key>"` is set
+- `config.abort.<key>` → shown when `async_abort(reason="<key>")` is called
+
+When adding a new error or abort reason in `config_flow.py`, add the matching string here.
 
 ---
 

@@ -1,0 +1,76 @@
+name: Validate & Release
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  validate:
+    name: Validate version consistency
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read versions
+        id: ver
+        run: |
+          ADDON_VER=$(jq -r '.version' config.json)
+          INTEGRATION_VER=$(jq -r '.version' custom_components/ha_basic_addon/manifest.json)
+          echo "addon=$ADDON_VER"
+          echo "integration=$INTEGRATION_VER"
+          if [ "$ADDON_VER" != "$INTEGRATION_VER" ]; then
+            echo "::error::Version mismatch: config.json=$ADDON_VER, manifest.json=$INTEGRATION_VER"
+            exit 1
+          fi
+          echo "version=$ADDON_VER" >> "$GITHUB_OUTPUT"
+          echo "✅ Version $ADDON_VER is consistent"
+
+  release:
+    name: Create GitHub release
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v$VERSION already exists — skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Will create release v$VERSION"
+          fi
+
+      - name: Extract changelog entry
+        if: steps.check.outputs.exists == 'false'
+        id: notes
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Store multi-line output safely
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.validate.outputs.version }}
+          name: v${{ needs.validate.outputs.version }}
+          body: ${{ steps.notes.outputs.notes }}
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

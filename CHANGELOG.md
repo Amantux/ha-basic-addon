@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-03-29
+- Fix: replace deprecated `async_setup_platforms` with `async_forward_entry_setups` (HA 2022.6+ requirement).
+- Add `strings.json` so config flow shows human-readable labels and error messages instead of raw keys.
+- Add `.github/workflows/validate.yml`: validates `config.json` and `manifest.json` versions match on every push, and auto-creates a GitHub release (required for HACS to deliver updates to users).
+
 ## [0.1.2] - 2026-03-29
 - **Fix: valid Supervisor add-on repository** — added `repository.json` so HA recognizes the repo as a valid custom add-on store.
 - Rewrote `config.json` to remove invalid keys (`build`, `host_network`) and corrected the `map` field format to the required string-list format (`["data:rw"]`).
