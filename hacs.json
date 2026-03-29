@@ -1,0 +1,14 @@
+{
+  "name": "HA Basic Add-on",
+  "content_in_root": false,
+  "domains": [
+    "ha_basic_addon"
+  ],
+  "components": [],
+  "country": [],
+  "remote": "",
+  "tags": [
+    "addon",
+    "integration"
+  ]
+}
