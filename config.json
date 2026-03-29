@@ -1,8 +1,9 @@
 {
   "name": "HA Basic Add-on",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "slug": "ha-basic-addon",
   "description": "A minimal supervisor add-on that exposes a health endpoint for Home Assistant integrations.",
+  "url": "https://github.com/Amantux/ha-basic-addon",
   "arch": [
     "amd64",
     "armv7",
@@ -10,9 +11,6 @@
   ],
   "startup": "services",
   "boot": "auto",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
   "options": {
     "host": "0.0.0.0",
     "port": 8080,
@@ -22,18 +20,11 @@
     "8080/tcp": 8080
   },
   "ingress": true,
-  "map": [
-    {
-      "data": "config"
-    }
-  ],
-  "discovery": [
-    "ha_basic_addon"
-  ],
+  "map": ["data:rw"],
+  "discovery": ["ha_basic_addon"],
   "schema": {
     "host": "str?",
     "port": "int?",
     "greeting": "str?"
-  },
-  "host_network": false
+  }
 }

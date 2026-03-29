@@ -1,7 +1,7 @@
 {
   "domain": "ha_basic_addon",
   "name": "HA Basic Add-on",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "documentation": "https://github.com/Amantux/ha-basic-addon",
   "dependencies": [],
   "codeowners": [

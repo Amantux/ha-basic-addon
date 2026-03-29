@@ -9,18 +9,20 @@ This repository provides a minimal Home Assistant add-on **plus** a companion cu
 
 ## Quick setup
 
-1. **Install the add-on**
-   - Go to Hass.io Supervisor → Add-on Store → *Repositories* and add `https://github.com/Amantux/ha-basic-addon`.
-   - Install **HA Basic Add-on**, then configure any options you need (host/port/greeting) and start it.
-   - The add-on ships with a `config.json` at the repository root so Supervisor recognizes it automatically.
+1. **Add the Supervisor repository**
+   - In Home Assistant go to **Settings → Add-ons → Add-on Store → ⋮ → Repositories**.
+   - Add `https://github.com/Amantux/ha-basic-addon` and click **Add**.
+   - The **HA Basic Add-on** will appear in the store — install it, configure options if needed, and **Start** it.
 
 2. **Install the integration via HACS**
-   - In HACS go to **Integrations → Custom repositories** and register this repository with category **Integration**.
-   - Install the integration, then restart Home Assistant to make it available.
+   - In HACS go to **Integrations → ⋮ → Custom repositories**.
+   - Paste `https://github.com/Amantux/ha-basic-addon`, select category **Integration**, and click **Add**.
+   - Search for *HA Basic Add-on* in HACS, install it, and restart Home Assistant.
 
-3. **Let Home Assistant discover the add-on**
-   - When the add-on runs, Supervisor sends discovery information for the `ha_basic_addon` domain.
-   - A prompt appears in Settings → Devices & Services to finish setting up the `Basic Add-on Health` sensor.
+3. **Auto-discovery**
+   - Once the add-on is running, Supervisor broadcasts a discovery event for the `ha_basic_addon` domain.
+   - A card appears in **Settings → Devices & Services** — click **Configure** to finish setup.
+   - A `Basic Add-on Health` sensor is created automatically.
 
 ## Development notes
 
