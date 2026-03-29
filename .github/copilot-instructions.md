@@ -83,13 +83,18 @@ self._attr_name = "Basic Add-on Health"
 - `local_push` — device pushes state changes to HA
 Using the wrong value causes HACS/HA quality-scale warnings and misleads users.
 
-### Discovery wiring — use `async_step_hassio`, not `async_step_discovery`
+### Discovery wiring — two-step `hassio` flow (Mealie pattern)
 
-HA Supervisor sets `context={"source": SOURCE_HASSIO}` when creating the discovery flow. HA's `data_entry_flow.py` maps this to `async_step_{source}` = **`async_step_hassio`**.  `async_step_discovery` is for generic discovery (mDNS/DHCP) and is **never called** by Supervisor.
+HA Supervisor sets `context={"source": SOURCE_HASSIO}` → calls `async_step_hassio`. **Do not create the entry in this step.** The correct pattern (from `homeassistant/components/mealie/config_flow.py`) is two steps:
+
+1. `async_step_hassio` — set unique_id, abort if already configured, store `discovery_info`, redirect to `async_step_hassio_confirm`.
+2. `async_step_hassio_confirm` — shows a confirmation card in the UI ("New device found"). User clicks it, sees the add-on name, confirms → validate connection → create entry.
+
+Without `hassio_confirm`, HA silently auto-creates or silently fails with no visible notification. The confirmation step is what surfaces the "New device found" card in Settings → Devices & Services.
 
 Citation: `homeassistant/components/hassio/discovery.py` → `discovery_flow.async_create_flow(..., context={"source": config_entries.SOURCE_HASSIO}, ...)`
 
-**Import path** (corrected):
+**Import path** for `HassioServiceInfo` (not `homeassistant.components.hassio`):
 ```python
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 ```
@@ -97,22 +102,37 @@ from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
 **Correct pattern:**
 ```python
+_hassio_discovery: HassioServiceInfo | None = None  # class attribute
+
 async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
-    await self.async_set_unique_id(discovery_info.uuid)   # stable hex per add-on instance
+    await self.async_set_unique_id(discovery_info.uuid)
     self._abort_if_unique_id_configured()
-    port = int(discovery_info.config.get(CONF_PORT, DEFAULT_PORT))
-    # discovery_info.config["host"] is the bind address (0.0.0.0) — not routable.
-    # On Supervisor both HA and the add-on share the host; connect via 127.0.0.1.
-    return self.async_create_entry(
-        title=discovery_info.name,
-        data={CONF_HOST: DEFAULT_HOST, CONF_PORT: port},
-    )
+    self._hassio_discovery = discovery_info
+    return await self.async_step_hassio_confirm()
+
+async def async_step_hassio_confirm(self, user_input=None) -> FlowResult:
+    assert self._hassio_discovery is not None
+    if user_input is None:
+        return self.async_show_form(
+            step_id="hassio_confirm",
+            description_placeholders={"addon": self._hassio_discovery.name},
+        )
+    port = int(self._hassio_discovery.config.get(CONF_PORT, DEFAULT_PORT))
+    data = {CONF_HOST: DEFAULT_HOST, CONF_PORT: port}
+    try:
+        await self._async_validate_input(self.hass, data)
+    except (ClientError, asyncio.TimeoutError):
+        return self.async_abort(reason="cannot_connect")
+    return self.async_create_entry(title=self._hassio_discovery.name, data=data)
 ```
+
+Note: `discovery_info.config["host"]` is the bind address (`0.0.0.0`) — not routable. Connect via `DEFAULT_HOST` (`http://127.0.0.1`) since both HA and the add-on run on the same Supervisor host.
 
 For discovery to work end-to-end:
 1. `config.json` must list the domain under `"discovery"`: `["ha_basic_addon"]`
-2. `config_flow.py` must implement `async_step_hassio` (not `async_step_discovery`)
-3. The config flow domain must match `DOMAIN` in `const.py` and `"domain"` in `manifest.json`
+2. `config_flow.py` must implement both `async_step_hassio` AND `async_step_hassio_confirm`
+3. `strings.json` must have a `config.step.hassio_confirm` entry with a `description` using `{addon}` placeholder
+4. The config flow domain must match `DOMAIN` in `const.py` and `"domain"` in `manifest.json`
 
 ---
 

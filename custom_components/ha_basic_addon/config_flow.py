@@ -51,11 +51,28 @@ class HaBasicAddonOptionsFlow(config_entries.OptionsFlow):
 
 
 class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Config flow for HA Basic Add-on.
+
+    Discovery path (Supervisor):
+        async_step_hassio  →  async_step_hassio_confirm  →  entry created
+        (stores info)          (user confirms in UI)
+
+    Manual path:
+        async_step_user  →  entry created
+    """
+
     VERSION = 1
+
+    # Populated in async_step_hassio; read in async_step_hassio_confirm.
+    _hassio_discovery: HassioServiceInfo | None = None
 
     @staticmethod
     def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> HaBasicAddonOptionsFlow:
         return HaBasicAddonOptionsFlow()
+
+    # ------------------------------------------------------------------
+    # Manual setup
+    # ------------------------------------------------------------------
 
     async def async_step_user(
         self, user_input: dict[str, object] | None = None
@@ -86,24 +103,56 @@ class HaBasicAddonFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
-        """Handle Supervisor discovery (SOURCE_HASSIO → async_step_hassio).
+    # ------------------------------------------------------------------
+    # Supervisor discovery — two-step following the Mealie pattern
+    # (homeassistant/components/mealie/config_flow.py)
+    # ------------------------------------------------------------------
 
-        Called when the add-on's config.json lists this domain under "discovery".
-        discovery_info fields: config (dict), name (str), slug (str), uuid (str).
-        Citation: homeassistant/components/hassio/discovery.py → async_create_flow
-                  with context={"source": SOURCE_HASSIO}
+    async def async_step_hassio(self, discovery_info: HassioServiceInfo) -> FlowResult:
+        """Step 1: Triggered by Supervisor when the add-on advertises ha_basic_addon.
+
+        SOURCE_HASSIO → async_step_hassio (homeassistant/components/hassio/discovery.py).
+        We store the discovery payload and surface a confirmation card in the UI.
+        We do NOT create the entry here — that lets the user acknowledge the discovery
+        and gives us a chance to validate the connection first.
         """
         await self.async_set_unique_id(discovery_info.uuid)
         self._abort_if_unique_id_configured()
 
-        # config["host"] is the add-on's *bind* address (0.0.0.0), not routable.
-        # On Supervisor the add-on and HA share the host — connect via 127.0.0.1.
-        port = int(discovery_info.config.get(CONF_PORT, DEFAULT_PORT))
-        return self.async_create_entry(
-            title=discovery_info.name,
-            data={CONF_HOST: DEFAULT_HOST, CONF_PORT: port},
-        )
+        self._hassio_discovery = discovery_info
+        return await self.async_step_hassio_confirm()
+
+    async def async_step_hassio_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2: User clicks the 'New device found' card and confirms.
+
+        Validates the connection before creating the entry so a not-yet-ready
+        add-on doesn't leave a broken config entry behind.
+        """
+        assert self._hassio_discovery is not None
+
+        if user_input is None:
+            # Show confirmation form — user sees the add-on name and clicks Submit.
+            return self.async_show_form(
+                step_id="hassio_confirm",
+                description_placeholders={"addon": self._hassio_discovery.name},
+            )
+
+        port = int(self._hassio_discovery.config.get(CONF_PORT, DEFAULT_PORT))
+        data = {CONF_HOST: DEFAULT_HOST, CONF_PORT: port}
+
+        try:
+            await self._async_validate_input(self.hass, data)
+        except (ClientError, asyncio.TimeoutError) as exc:
+            _LOGGER.warning("Add-on not reachable during discovery confirm: %s", exc)
+            return self.async_abort(reason="cannot_connect")
+
+        return self.async_create_entry(title=self._hassio_discovery.name, data=data)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
     async def _async_validate_input(self, hass: HomeAssistant, data: dict[str, object]) -> None:
         session = aiohttp_client.async_get_clientsession(hass)

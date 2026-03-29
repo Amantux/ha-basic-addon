@@ -7,13 +7,18 @@
           "host": "Add-on host (e.g. http://127.0.0.1)",
           "port": "Port"
         }
+      },
+      "hassio_confirm": {
+        "title": "HA Basic Add-on discovered",
+        "description": "Do you want to set up the add-on: **{addon}**?"
       }
     },
     "error": {
       "cannot_connect": "Unable to connect. Make sure the add-on is installed and running."
     },
     "abort": {
-      "already_configured": "This add-on is already configured."
+      "already_configured": "This add-on is already configured.",
+      "cannot_connect": "Could not reach the add-on. Start it and try again from Settings → Devices & Services."
     }
   },
   "options": {

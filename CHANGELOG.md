@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.6] - 2026-03-29
+- **Fix (critical): Two-step Supervisor discovery flow.**
+  - Previous: `async_step_hassio` immediately called `async_create_entry`. This skipped the
+    "New device found" notification in Settings → Devices & Services, gave the user no chance to
+    confirm, and silently failed if the add-on wasn't ready yet.
+  - Fixed: modelled after `homeassistant/components/mealie/config_flow.py`.
+    `async_step_hassio` now stores `_hassio_discovery` and delegates to
+    `async_step_hassio_confirm`. That step shows a confirmation form with the add-on name; on
+    submit it validates the connection and only then creates the entry. If the connection fails,
+    it aborts with `"cannot_connect"` instead of creating a broken entry.
+  - Added `hassio_confirm` step to `strings.json` with `{addon}` placeholder.
+  - Added `"cannot_connect"` abort reason to `strings.json`.
+- Updated `copilot-instructions.md` with the Mealie two-step pattern for future reference.
+
 ## [0.1.5] - 2026-03-29
 - **Fix (critical): Supervisor discovery now actually works.**
   - Renamed `async_step_discovery` → `async_step_hassio`. HA Supervisor sets
